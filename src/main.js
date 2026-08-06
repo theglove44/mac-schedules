@@ -11,7 +11,7 @@ const GROUP_ORDER = [
 
 const state = {
   jobs: [],
-  filter: "all",
+  filter: "home",
   search: "",
   selectedId: null,
 };
@@ -55,7 +55,22 @@ function matchesSearch(job) {
 }
 
 function render() {
+  const home = document.getElementById("home");
   const list = document.getElementById("listbox");
+  const detail = document.getElementById("detail");
+  const search = document.getElementById("search");
+  const isHome = state.filter === "home";
+
+  home.hidden = !isHome;
+  list.hidden = isHome;
+  detail.hidden = isHome;
+  search.hidden = isHome;
+
+  if (isHome) {
+    document.getElementById("status-count").textContent = "Home";
+    return;
+  }
+
   list.innerHTML = "";
 
   const visible = state.jobs.filter((j) => matchesFilter(j) && matchesSearch(j));

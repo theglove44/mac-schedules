@@ -172,6 +172,34 @@ body {
   gap: 8px;
 }
 
+/* ---- Home ----------------------------------------------------------- */
+.home {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 36px 24px;
+  background: var(--plat-face-light);
+  border: 1px solid var(--plat-dark);
+  box-shadow: inset 1px 1px 0 var(--plat-white);
+}
+.home-panel {
+  width: min(520px, 100%);
+  padding: 18px 22px;
+  background: var(--plat-face);
+  border: 1px solid var(--plat-dark);
+  box-shadow: inset 1px 1px 0 var(--plat-white), inset -1px -1px 0 var(--plat-mid);
+  text-align: center;
+}
+.home h1 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.home p {
+  margin: 7px 0;
+  line-height: 1.4;
+}
+
 /* Sunken white list box */
 .listbox {
   width: 46%;

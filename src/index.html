@@ -20,7 +20,8 @@
         <!-- Toolbar -->
         <div class="toolbar">
           <div class="tabs" id="tabs">
-            <button class="tab active" data-filter="all">All</button>
+            <button class="tab active" data-filter="home">Home</button>
+            <button class="tab" data-filter="all">All</button>
             <button class="tab" data-filter="User Agents">User Agents</button>
             <button class="tab" data-filter="Global Agents">Global</button>
             <button class="tab" data-filter="System Daemons">System</button>
@@ -34,6 +35,7 @@
               class="search"
               placeholder="Search…"
               spellcheck="false"
+              hidden
             />
             <button class="btn" id="refresh">Refresh</button>
           </div>
@@ -41,8 +43,16 @@
 
         <!-- Body: list + detail -->
         <div class="body">
-          <div class="listbox" id="listbox"></div>
-          <div class="detail" id="detail">
+          <section class="home" id="home">
+            <div class="home-panel">
+              <h1>Welcome to Schedules</h1>
+              <p>See every launchd and cron job on this Mac in one place.</p>
+              <p>Inspect schedules, check running state, and manage jobs safely.</p>
+              <p>Select a tab above to browse jobs.</p>
+            </div>
+          </section>
+          <div class="listbox" id="listbox" hidden></div>
+          <div class="detail" id="detail" hidden>
             <div class="detail-empty">Select a job to see its details.</div>
           </div>
         </div>
