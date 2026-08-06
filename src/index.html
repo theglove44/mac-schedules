@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles/platinum.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Schedules</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+  <body>
+    <div class="desktop">
+      <div class="window">
+        <!-- Title bar -->
+        <div class="titlebar" id="titlebar" data-tauri-drag-region>
+          <span class="close-box" title="Close" id="close-box"></span>
+          <span class="title-text">Schedules</span>
+          <span class="zoom-box" title="Minimize" id="min-box"></span>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="tabs" id="tabs">
+            <button class="tab active" data-filter="all">All</button>
+            <button class="tab" data-filter="User Agents">User Agents</button>
+            <button class="tab" data-filter="Global Agents">Global</button>
+            <button class="tab" data-filter="System Daemons">System</button>
+            <button class="tab" data-filter="apple">Apple</button>
+            <button class="tab" data-filter="Cron">Cron</button>
+          </div>
+          <div class="toolbar-right">
+            <input
+              type="text"
+              id="search"
+              class="search"
+              placeholder="Search…"
+              spellcheck="false"
+            />
+            <button class="btn" id="refresh">Refresh</button>
+          </div>
+        </div>
+
+        <!-- Body: list + detail -->
+        <div class="body">
+          <div class="listbox" id="listbox"></div>
+          <div class="detail" id="detail">
+            <div class="detail-empty">Select a job to see its details.</div>
+          </div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="statusbar">
+          <span id="status-count">0 jobs</span>
+          <span class="grow"></span>
+          <span id="status-msg"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Classic confirm modal -->
+    <div class="modal-backdrop" id="modal" hidden>
+      <div class="dialog">
+        <div class="dialog-body">
+          <div class="dialog-icon">!</div>
+          <div class="dialog-text" id="modal-text"></div>
+        </div>
+        <div class="dialog-buttons">
+          <button class="btn" id="modal-cancel">Cancel</button>
+          <button class="btn default" id="modal-ok">OK</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
