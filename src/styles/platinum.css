@@ -183,6 +183,10 @@ body {
   border: 1px solid var(--plat-dark);
   box-shadow: inset 1px 1px 0 var(--plat-white);
 }
+/* `display: flex` above outranks the UA `[hidden]` rule, so restate it. */
+.home[hidden] {
+  display: none;
+}
 .home-panel {
   width: min(520px, 100%);
   padding: 18px 22px;

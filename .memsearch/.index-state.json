@@ -1,0 +1,16 @@
+{
+  "collection": "ms_classic_schedules_185d58eb",
+  "failed_files": [],
+  "last_completed_at": "2026-08-06T13:28:58.172448Z",
+  "last_error": "RuntimeError: Failed to open the local Milvus Lite database. If this database was created with an older Milvus Lite release, it may not be compatible with Milvus Lite 3.x. Move the existing .db file aside, then rebuild the index from your source markdown files with 'memsearch index'. Alternatively, use Milvus Server via Docker or Zilliz Cloud.",
+  "last_failed_at": "2026-08-06T13:28:58.172448Z",
+  "last_started_at": "2026-08-06T13:28:55.001748Z",
+  "milvus_uri": "~/.memsearch/milvus.db",
+  "operation": "index",
+  "paths": [
+    "/Users/christaylor/Projects/classic-schedules/.memsearch/memory"
+  ],
+  "schema_version": 1,
+  "status": "error",
+  "updated_at": "2026-08-06T13:28:58.172448Z"
+}
