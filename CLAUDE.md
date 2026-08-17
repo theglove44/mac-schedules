@@ -14,9 +14,11 @@ A Mac desktop app that shows every scheduled/background job on this machine —
 
 - `src/` — frontend. `index.html`, `main.js`, `styles/platinum.css` (hand-written
   Platinum theme; not System.css).
-- `src-tauri/src/jobs.rs` — all data logic: enumerate launchd domains, parse
-  plists, merge `launchctl list` runtime state, parse cron, decode schedules to
-  plain English, enable/disable.
+- `src-tauri/src/jobs/` — all data logic, split read-vs-write: `types.rs` (the
+  `Job`/`Domain` structs and shared helpers), `launchd.rs` (enumerate domains,
+  parse plists, merge `launchctl list`/`print-disabled` state, decode
+  schedules), `cron.rs` (crontab parsing + decoding), `actions.rs`
+  (enable/disable/delete, Finder helpers), `mod.rs` (public API).
 - `src-tauri/src/lib.rs` — Tauri command wiring.
 
 ## Commands (Rust → JS)
@@ -58,5 +60,5 @@ npm run tauri build    # produces src-tauri/target/release/bundle/macos/Schedule
   via `data-tauri-drag-region`, close/minimise via the JS window API (perms in
   `src-tauri/capabilities/default.json`).
 - cron is typically empty on modern macOS; the Cron tab shows an empty state.
-- Schedule decoding lives in `decode_launchd_schedule` / `decode_cron`
-  (`jobs.rs`) — extend there for new key types.
+- Schedule decoding lives in `decode_launchd_schedule` (`jobs/launchd.rs`) and
+  `decode_cron` (`jobs/cron.rs`) — extend there for new key types.
