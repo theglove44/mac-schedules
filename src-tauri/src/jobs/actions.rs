@@ -15,7 +15,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use super::types::uid;
+use super::types::{uid, Action, Scope};
 
 /// One `launchctl` invocation within a larger operation.
 ///
@@ -43,8 +43,8 @@ fn step(args: &[&str], critical: bool) -> Step {
 /// # Returns
 /// `Ok(())` if the job may be modified, otherwise `Err` with a message written
 /// for the user, not for a log.
-fn guard_protected(label: &str, path: &str, scope: &str) -> Result<(), String> {
-    if label.starts_with("com.apple.") || scope == "apple" {
+fn guard_protected(label: &str, path: &str, scope: Scope) -> Result<(), String> {
+    if label.starts_with("com.apple.") || scope == Scope::Apple {
         return Err("Apple system job — refused. Changing com.apple.* jobs can destabilise macOS.".into());
     }
     if path.starts_with("/System/") {
@@ -63,8 +63,8 @@ fn guard_protected(label: &str, path: &str, scope: &str) -> Result<(), String> {
 /// # Arguments
 /// * `label` — the job's launchd label.
 /// * `path` — its plist, needed by `bootstrap` when re-enabling.
-/// * `scope` — `"user"`, `"global"`, `"system"` or `"apple"`; `"system"` selects
-///   the `system` launchd domain and triggers the admin prompt.
+/// * `scope` — selects the launchd domain, and decides via
+///   [`Scope::needs_admin`] whether the change needs an admin prompt.
 /// * `enable` — `true` to enable, `false` to disable.
 ///
 /// # Returns
@@ -73,12 +73,12 @@ fn guard_protected(label: &str, path: &str, scope: &str) -> Result<(), String> {
 ///
 /// # Safety
 /// Apple jobs and `/System` are refused — see [`guard_protected`].
-pub fn set_job_enabled(label: &str, path: &str, scope: &str, enable: bool) -> Result<String, String> {
+pub fn set_job_enabled(label: &str, path: &str, scope: Scope, enable: bool) -> Result<String, String> {
     guard_protected(label, path, scope)?;
 
-    let is_daemon = scope == "system";
-    let domain = if is_daemon { "system".to_string() } else { format!("gui/{}", uid()) };
+    let domain = scope.launchd_domain(&uid());
     let target = format!("{}/{}", domain, label);
+    let privileged = scope.needs_admin(Action::Toggle);
 
     let steps = if enable {
         vec![
@@ -92,7 +92,7 @@ pub fn set_job_enabled(label: &str, path: &str, scope: &str, enable: bool) -> Re
         ]
     };
 
-    run_steps(&steps, is_daemon)
+    run_steps(&steps, privileged)
         .map(|_| format!("{} {}", label, if enable { "enabled" } else { "disabled" }))
 }
 
@@ -113,7 +113,7 @@ pub fn set_job_enabled(label: &str, path: &str, scope: &str, enable: bool) -> Re
 /// Apple jobs and `/System` are refused. Unlike [`set_job_enabled`], *global*
 /// agents also need administrator rights here, because moving the file requires
 /// write access to root-owned `/Library/LaunchAgents`.
-pub fn delete_job(label: &str, path: &str, scope: &str) -> Result<String, String> {
+pub fn delete_job(label: &str, path: &str, scope: Scope) -> Result<String, String> {
     guard_protected(label, path, scope)?;
 
     let src = Path::new(path);
@@ -121,14 +121,13 @@ pub fn delete_job(label: &str, path: &str, scope: &str) -> Result<String, String
         return Err(format!("No such file: {}", path));
     }
 
-    let is_daemon = scope == "system";
-    let domain = if is_daemon { "system".to_string() } else { format!("gui/{}", uid()) };
+    let domain = scope.launchd_domain(&uid());
     let target = format!("{}/{}", domain, label);
     let dest = trash_destination(src)?;
 
     // Direct filesystem access only works where the containing directory is
     // ours; /Library and /Library/LaunchDaemons are root-owned.
-    let privileged = scope != "user";
+    let privileged = scope.needs_admin(Action::Delete);
 
     // Both steps are best-effort: a job that was never loaded, or has no
     // disabled-db entry, is still perfectly deletable.
@@ -313,8 +312,10 @@ mod tests {
 
     #[test]
     fn guard_refuses_apple_and_system_volume() {
-        assert!(guard_protected("com.apple.thing", "/Library/LaunchAgents/x.plist", "user").is_err());
-        assert!(guard_protected("com.me.thing", "/System/Library/LaunchAgents/x.plist", "user").is_err());
-        assert!(guard_protected("com.me.thing", "/Library/LaunchAgents/x.plist", "user").is_ok());
+        assert!(guard_protected("com.apple.thing", "/Library/LaunchAgents/x.plist", Scope::User).is_err());
+        assert!(guard_protected("com.me.thing", "/System/Library/LaunchAgents/x.plist", Scope::User).is_err());
+        assert!(guard_protected("com.me.thing", "/Library/LaunchAgents/x.plist", Scope::User).is_ok());
+        // An Apple-scoped job is refused even when its label is not com.apple.*
+        assert!(guard_protected("com.me.thing", "/Library/LaunchAgents/x.plist", Scope::Apple).is_err());
     }
 }

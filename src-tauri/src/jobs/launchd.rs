@@ -10,18 +10,18 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use super::types::{uid, weekday_name, Domain, Job};
+use super::types::{uid, weekday_name, Domain, Job, Scope};
 
 /// Every directory launchd loads job definitions from, in display order.
 ///
 /// A `const` table rather than runtime discovery: these five paths are fixed by
 /// macOS, and hard-coding them keeps the listing deterministic.
 const DOMAINS: &[Domain] = &[
-    Domain { dir: "Library/LaunchAgents", scope: "user", group: "User Agents", home: true, daemon: false },
-    Domain { dir: "/Library/LaunchAgents", scope: "global", group: "Global Agents", home: false, daemon: false },
-    Domain { dir: "/Library/LaunchDaemons", scope: "system", group: "System Daemons", home: false, daemon: true },
-    Domain { dir: "/System/Library/LaunchAgents", scope: "apple", group: "Apple Agents", home: false, daemon: false },
-    Domain { dir: "/System/Library/LaunchDaemons", scope: "apple", group: "Apple Daemons", home: false, daemon: true },
+    Domain { dir: "Library/LaunchAgents", scope: Scope::User, group: "User Agents", home: true, daemon: false },
+    Domain { dir: "/Library/LaunchAgents", scope: Scope::Global, group: "Global Agents", home: false, daemon: false },
+    Domain { dir: "/Library/LaunchDaemons", scope: Scope::System, group: "System Daemons", home: false, daemon: true },
+    Domain { dir: "/System/Library/LaunchAgents", scope: Scope::Apple, group: "Apple Agents", home: false, daemon: false },
+    Domain { dir: "/System/Library/LaunchDaemons", scope: Scope::Apple, group: "Apple Daemons", home: false, daemon: true },
 ];
 
 /// List every launchd job across all five domains in [`DOMAINS`].
@@ -92,7 +92,7 @@ fn parse_launchd_plist(
     // Label wins over location: an Apple-owned label installed into /Library is
     // still Apple's, and must still be protected from toggling.
     let apple = label.starts_with("com.apple.");
-    let scope = if apple { "apple" } else { d.scope };
+    let scope = if apple { Scope::Apple } else { d.scope };
 
     let mut args: Vec<String> = Vec::new();
     if let Some(pa) = dict.get("ProgramArguments").and_then(|v| v.as_array()) {
@@ -121,7 +121,7 @@ fn parse_launchd_plist(
     Some(Job {
         label,
         kind: "launchd".into(),
-        scope: scope.into(),
+        scope,
         source_path: path.to_string_lossy().into_owned(),
         source_group: d.group.into(),
         program,

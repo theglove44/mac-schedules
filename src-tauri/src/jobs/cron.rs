@@ -7,7 +7,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use super::types::{weekday_name, Job};
+use super::types::{weekday_name, Job, Scope};
 
 /// System-wide crontab files, which carry a user-name field before the command.
 const SYSTEM_CRON_FILES: &[&str] = &["/etc/crontab"];
@@ -106,7 +106,7 @@ fn parse_cron_text(text: &str, source: &str, has_user_field: bool, jobs: &mut Ve
         jobs.push(Job {
             label: format!("{}:{}", short_source(source), i + 1),
             kind: "cron".into(),
-            scope: if has_user_field { "system".into() } else { "user".into() },
+            scope: if has_user_field { Scope::System } else { Scope::User },
             source_path: source.to_string(),
             source_group: "Cron".into(),
             program: command.clone(),

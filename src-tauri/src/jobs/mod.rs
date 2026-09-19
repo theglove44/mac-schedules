@@ -30,4 +30,4 @@ mod types;
 pub use actions::{delete_job, open_path, reveal_in_finder, set_job_enabled};
 pub use cron::list_cron_jobs;
 pub use launchd::list_launchd_jobs;
-pub use types::Job;
+pub use types::{Job, Scope};

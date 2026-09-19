@@ -1,6 +1,6 @@
 mod jobs;
 
-use jobs::Job;
+use jobs::{Job, Scope};
 
 #[tauri::command]
 fn get_launchd_jobs() -> Vec<Job> {
@@ -13,13 +13,13 @@ fn get_cron_jobs() -> Vec<Job> {
 }
 
 #[tauri::command]
-fn set_enabled(label: String, path: String, scope: String, enable: bool) -> Result<String, String> {
-    jobs::set_job_enabled(&label, &path, &scope, enable)
+fn set_enabled(label: String, path: String, scope: Scope, enable: bool) -> Result<String, String> {
+    jobs::set_job_enabled(&label, &path, scope, enable)
 }
 
 #[tauri::command]
-fn delete_job(label: String, path: String, scope: String) -> Result<String, String> {
-    jobs::delete_job(&label, &path, &scope)
+fn delete_job(label: String, path: String, scope: Scope) -> Result<String, String> {
+    jobs::delete_job(&label, &path, scope)
 }
 
 #[tauri::command]
