@@ -1,8 +1,8 @@
 //! Data types shared by every part of the jobs module, plus the handful of
 //! helpers that both the launchd and cron decoders need.
 //!
-//! Kept deliberately dependency-free (no `Command`, no filesystem access) so it
-//! can be read as the vocabulary of the module without any behaviour attached.
+//! Close to dependency-free, so it can be read as the vocabulary of the module
+//! with little behaviour attached. [`uid`] is the exception, and shells out.
 
 use serde::{Deserialize, Serialize};
 
@@ -70,10 +70,10 @@ impl Scope {
 
 /// A single scheduled job, from either launchd or cron.
 ///
-/// One value per plist file or per crontab line. This is the only type crossing
-/// the Tauri bridge to the frontend, which is why it is `Serialize` and uses
-/// plain `String`s rather than enums — the UI does its own string matching and
-/// serde field names must stay stable.
+/// One value per plist file or per crontab line. The only type crossing the
+/// Tauri bridge, so its serialised shape *is* the contract with the frontend:
+/// field names, the `Scope` spellings and the tags inside [`Status`] and
+/// [`Permissions`] are all load-bearing, and each is pinned by a test.
 #[derive(Serialize, Clone)]
 pub struct Job {
     /// Unique identifier: the plist `Label`, or `<file>:<line>` for cron.

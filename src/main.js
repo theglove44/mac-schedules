@@ -164,18 +164,27 @@ function dotTitle(job) {
 
 /* ---- Reading what Rust decided ---------------------------------------- */
 
-// Why an action was refused. Rust sends the reason as a code; the wording lives
-// here, so changing a sentence does not mean rebuilding the app.
+// Why an action was refused. Rust sends a reason code, not a sentence, so these
+// tooltips can be reworded without rebuilding the app. Rust keeps its own
+// wording in Refusal::message for a different surface: the error a command
+// returns if one is somehow attempted anyway.
 const REFUSAL_TEXT = {
   apple: "Apple system job — protected",
   system_volume: "On the sealed /System volume — protected",
   unsupported: "cron jobs cannot be changed from this app",
 };
 
+function refusalText(permission) {
+  return REFUSAL_TEXT[permission.reason] || "Protected";
+}
+
 function stateBadge(status) {
   switch (status.state) {
     case "disabled":
-      return '<span class="badge offb">Disabled</span>';
+      return (
+        '<span class="badge offb">Disabled</span>' +
+        (status.pid != null ? ` <span class="badge on">Running · pid ${status.pid}</span>` : "")
+      );
     case "running":
       return `<span class="badge on">Enabled</span> <span class="badge on">Running · pid ${status.pid}</span>`;
     case "idle":
@@ -194,8 +203,7 @@ function stateBadge(status) {
 function actionButton(id, label, permission, extraClass = "") {
   const cls = `btn${extraClass ? " " + extraClass : ""}`;
   if (permission.state === "refused") {
-    const why = REFUSAL_TEXT[permission.reason] || "Protected";
-    return `<button class="${cls}" disabled title="${esc(why)}">${label}</button>`;
+    return `<button class="${cls}" disabled title="${esc(refusalText(permission))}">${label}</button>`;
   }
   return `<button class="${cls}" id="${id}">${label}</button>`;
 }
@@ -218,14 +226,17 @@ function renderDetail(job) {
 
   const dl = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
 
+  const toggleLabel = enabled ? "Disable" : "Enable";
   let actions = "";
   if (job.kind === "launchd") {
-    actions += actionButton("toggle-btn", enabled ? "Disable" : "Enable", job.permissions.toggle, "default");
-    actions += actionButton("delete-btn", "Delete…", job.permissions.delete);
+    const refused = job.permissions.toggle.state === "refused";
+    actions += actionButton("toggle-btn", toggleLabel, job.permissions.toggle, refused ? "" : "default");
+    // A protected job offers no delete either, so showing a second dead button
+    // would only add noise; the reason beside the first one covers both.
+    if (!refused) actions += actionButton("delete-btn", "Delete…", job.permissions.delete);
     actions += `<button class="btn" id="reveal-btn">Reveal plist</button>`;
-    if (job.permissions.toggle.state === "refused") {
-      const why = REFUSAL_TEXT[job.permissions.toggle.reason] || "Protected";
-      actions += `<span style="align-self:center;color:#777"> ${esc(why)}</span>`;
+    if (refused) {
+      actions += `<span style="align-self:center;color:#777"> ${esc(refusalText(job.permissions.toggle))}</span>`;
     }
   }
 

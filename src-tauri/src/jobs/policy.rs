@@ -21,9 +21,10 @@ use super::types::{Action, Scope};
 #[derive(Serialize, Clone, PartialEq, Eq, Debug)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum Status {
-    /// Switched off in launchd's disabled database. Beats every other state:
-    /// a disabled job may still show a pid until it next exits.
-    Disabled,
+    /// Switched off in launchd's disabled database. Beats every other state,
+    /// but still carries what a disabled job can have: it keeps running until
+    /// it next exits, and it may already have exited.
+    Disabled { pid: Option<i64>, last_exit: Option<i64> },
     /// Currently running.
     Running { pid: i64 },
     /// Loaded and waiting for its trigger.
@@ -60,7 +61,7 @@ impl LaunchdState {
     /// invite the user to disable something already disabled.
     pub fn status(&self) -> Status {
         if self.disabled_override.unwrap_or(self.disabled_key) {
-            return Status::Disabled;
+            return Status::Disabled { pid: self.pid, last_exit: self.last_exit };
         }
         match (self.pid, self.loaded) {
             (Some(pid), _) => Status::Running { pid },
@@ -186,7 +187,12 @@ mod tests {
             pid: Some(431),
             last_exit: None,
         };
-        assert_eq!(database_says_off_while_running.status(), Status::Disabled);
+        // Disabled wins, but the pid survives: launchd lets a disabled job run
+        // until it next exits, and hiding that would misreport the machine.
+        assert_eq!(
+            database_says_off_while_running.status(),
+            Status::Disabled { pid: Some(431), last_exit: None }
+        );
     }
 
     /// Each state carries only what it can know. A running job has no last
@@ -227,12 +233,43 @@ mod tests {
     fn status_serialises_with_an_internal_tag() {
         let json = |s: &Status| serde_json::to_string(s).unwrap();
         assert_eq!(json(&Status::Running { pid: 431 }), r#"{"state":"running","pid":431}"#);
-        assert_eq!(json(&Status::Disabled), r#"{"state":"disabled"}"#);
+        assert_eq!(
+            json(&Status::Disabled { pid: None, last_exit: Some(1) }),
+            r#"{"state":"disabled","pid":null,"last_exit":1}"#
+        );
         assert_eq!(json(&Status::Scheduled), r#"{"state":"scheduled"}"#);
         assert_eq!(
             json(&Status::NotLoaded { last_exit: Some(2) }),
             r#"{"state":"not_loaded","last_exit":2}"#
         );
+    }
+
+    /// The frontend keys its disabled-button tooltips off these exact
+    /// spellings, so a rename here silently degrades every tooltip to the
+    /// fallback text. Pin them.
+    #[test]
+    fn permissions_serialise_with_their_reason_codes() {
+        let json = |p: &Permission| serde_json::to_string(p).unwrap();
+        assert_eq!(json(&Permission::Editable), r#"{"state":"editable"}"#);
+        assert_eq!(json(&Permission::NeedsAdmin), r#"{"state":"needs_admin"}"#);
+        assert_eq!(
+            json(&Permission::Refused { reason: Refusal::Apple }),
+            r#"{"state":"refused","reason":"apple"}"#
+        );
+        assert_eq!(
+            json(&Permission::Refused { reason: Refusal::SystemVolume }),
+            r#"{"state":"refused","reason":"system_volume"}"#
+        );
+        assert_eq!(
+            json(&Permission::Refused { reason: Refusal::Unsupported }),
+            r#"{"state":"refused","reason":"unsupported"}"#
+        );
+    }
+
+    /// cron lines report the one state cron can actually support.
+    #[test]
+    fn cron_reports_scheduled() {
+        assert_eq!(serde_json::to_string(&Status::Scheduled).unwrap(), r#"{"state":"scheduled"}"#);
     }
 
     /// The same two refusals `actions.rs` enforces. Apple is checked before the
