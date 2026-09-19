@@ -19,9 +19,9 @@ const state = {
 // Stable id for a job (label may repeat across domains).
 const jobId = (j) => `${j.source_group}::${j.label}::${j.source_path}`;
 
-// launchd's disabled database wins over the plist's Disabled key. `enable`/
-// `disable` write the database, so this is the state the toggle actually sets.
-const isDisabled = (j) => (j.disabled_override != null ? j.disabled_override : j.disabled_key);
+// Rust decides a job's status and what may be done to it (src-tauri/src/jobs/
+// policy.rs). Nothing here re-derives those rules; this file only draws them.
+const isDisabled = (j) => j.status.state === "disabled";
 
 async function loadJobs() {
   setStatus("Loading…");
@@ -109,11 +109,6 @@ function render() {
   document.getElementById("status-count").textContent =
     `${total} job${total === 1 ? "" : "s"}` +
     (state.filter === "all" ? "" : ` in ${state.filter === "apple" ? "Apple" : state.filter}`);
-
-  // Keep selection if still visible
-  if (state.selectedId && !visible.some((j) => jobId(j) === state.selectedId)) {
-    // selection filtered out; leave detail as-is
-  }
 }
 
 function rowFor(job) {
@@ -140,41 +135,83 @@ function rowFor(job) {
   return row;
 }
 
+const DOT_CLASS = {
+  running: "running",
+  idle: "loaded",
+  scheduled: "loaded",
+  disabled: "off",
+  not_loaded: "off",
+};
+
 function dotClass(job) {
-  if (isDisabled(job)) return "off";
-  if (job.pid != null) return "running";
-  if (job.loaded) return "loaded";
-  return "off";
+  return DOT_CLASS[job.status.state] || "off";
 }
+
 function dotTitle(job) {
-  if (isDisabled(job)) return "Disabled";
-  if (job.pid != null) return "Running (pid " + job.pid + ")";
-  if (job.loaded) return "Loaded, idle";
-  return "Not loaded";
+  switch (job.status.state) {
+    case "running":
+      return `Running (pid ${job.status.pid})`;
+    case "idle":
+      return "Loaded, idle";
+    case "scheduled":
+      return "Scheduled";
+    case "disabled":
+      return "Disabled";
+    default:
+      return "Not loaded";
+  }
+}
+
+/* ---- Reading what Rust decided ---------------------------------------- */
+
+// Why an action was refused. Rust sends the reason as a code; the wording lives
+// here, so changing a sentence does not mean rebuilding the app.
+const REFUSAL_TEXT = {
+  apple: "Apple system job — protected",
+  system_volume: "On the sealed /System volume — protected",
+  unsupported: "cron jobs cannot be changed from this app",
+};
+
+function stateBadge(status) {
+  switch (status.state) {
+    case "disabled":
+      return '<span class="badge offb">Disabled</span>';
+    case "running":
+      return `<span class="badge on">Enabled</span> <span class="badge on">Running · pid ${status.pid}</span>`;
+    case "idle":
+      return '<span class="badge on">Enabled</span> <span class="badge">Loaded</span>';
+    case "not_loaded":
+      return '<span class="badge on">Enabled</span> <span class="badge">Not loaded</span>';
+    case "scheduled":
+      return '<span class="badge on">Scheduled</span>';
+    default:
+      return '<span class="badge">Unknown</span>';
+  }
+}
+
+// A refused action still gets a button, shown disabled with the reason on
+// hover, so the user can see the action exists and why it is unavailable.
+function actionButton(id, label, permission, extraClass = "") {
+  const cls = `btn${extraClass ? " " + extraClass : ""}`;
+  if (permission.state === "refused") {
+    const why = REFUSAL_TEXT[permission.reason] || "Protected";
+    return `<button class="${cls}" disabled title="${esc(why)}">${label}</button>`;
+  }
+  return `<button class="${cls}" id="${id}">${label}</button>`;
 }
 
 function renderDetail(job) {
   const el = document.getElementById("detail");
   const enabled = !isDisabled(job);
-  const stateBadge = enabled
-    ? '<span class="badge on">Enabled</span>'
-    : '<span class="badge offb">Disabled</span>';
-  const runBadge =
-    job.pid != null
-      ? `<span class="badge on">Running · pid ${job.pid}</span>`
-      : job.loaded
-      ? '<span class="badge">Loaded</span>'
-      : '<span class="badge">Not loaded</span>';
 
   const cmd = job.args && job.args.length ? job.args.join(" ") : job.program;
 
   const rows = [];
   rows.push(["Label", esc(job.label)]);
   rows.push(["Schedule", esc(job.schedule_human)]);
-  rows.push(["State", stateBadge + " " + (job.kind === "launchd" ? runBadge : "")]);
+  rows.push(["State", stateBadge(job.status)]);
   if (cmd) rows.push(["Command", `<code>${esc(cmd)}</code>`]);
-  if (job.last_exit != null && job.pid == null)
-    rows.push(["Last exit", String(job.last_exit)]);
+  if (job.status.last_exit != null) rows.push(["Last exit", String(job.status.last_exit)]);
   rows.push(["Source", `<span class="mono">${esc(job.source_path)}</span>`]);
   if (job.stdout_path) rows.push(["Log (out)", logLink(job.stdout_path)]);
   if (job.stderr_path) rows.push(["Log (err)", logLink(job.stderr_path)]);
@@ -183,17 +220,13 @@ function renderDetail(job) {
 
   let actions = "";
   if (job.kind === "launchd") {
-    if (job.apple) {
-      actions = `<button class="btn" disabled title="Apple system job — protected">${
-        enabled ? "Disable" : "Enable"
-      }</button><span style="align-self:center;color:#777"> Apple job — protected</span>`;
-    } else {
-      actions = `<button class="btn default" id="toggle-btn">${
-        enabled ? "Disable" : "Enable"
-      }</button>`;
-      actions += `<button class="btn" id="delete-btn">Delete…</button>`;
-    }
+    actions += actionButton("toggle-btn", enabled ? "Disable" : "Enable", job.permissions.toggle, "default");
+    actions += actionButton("delete-btn", "Delete…", job.permissions.delete);
     actions += `<button class="btn" id="reveal-btn">Reveal plist</button>`;
+    if (job.permissions.toggle.state === "refused") {
+      const why = REFUSAL_TEXT[job.permissions.toggle.reason] || "Protected";
+      actions += `<span style="align-self:center;color:#777"> ${esc(why)}</span>`;
+    }
   }
 
   el.innerHTML = `
@@ -231,7 +264,7 @@ function clearDetail() {
 }
 
 function confirmDelete(job) {
-  const needsAuth = job.scope !== "user";
+  const needsAuth = job.permissions.delete.state === "needs_admin";
   let msg =
     `Delete “${job.label}”?\n\n` +
     `The job will be unloaded and its file moved to the Trash:\n${job.source_path}`;
@@ -258,9 +291,8 @@ function confirmDelete(job) {
 function confirmToggle(job) {
   const enable = isDisabled(job); // if currently disabled, we enable
   const verb = enable ? "enable" : "disable";
-  const isDaemon = job.scope === "system";
   let msg = `Are you sure you want to ${verb} “${job.label}”?`;
-  if (isDaemon)
+  if (job.permissions.toggle.state === "needs_admin")
     msg += "\n\nThis is a system daemon — macOS will ask for your administrator password.";
 
   showModal(msg, async () => {

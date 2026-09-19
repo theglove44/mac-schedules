@@ -14,6 +14,10 @@
 //! modules only ever read, so they can be careless about failure, while
 //! `actions` is the single place where anything on the machine changes.
 //!
+//! `policy` sits under both and touches neither the filesystem nor a command:
+//! it decides what a job's state *means* and what may be done to it. Those
+//! decisions used to be made twice, once here and once in the frontend.
+//!
 //! # Safety
 //! - Every read path is best-effort — an unreadable file or directory is
 //!   skipped, never fatal, so one bad plist cannot hide the rest.
