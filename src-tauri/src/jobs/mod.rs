@@ -25,6 +25,7 @@
 mod actions;
 mod cron;
 mod launchd;
+mod policy;
 mod types;
 
 pub use actions::{delete_job, open_path, reveal_in_finder, set_job_enabled};

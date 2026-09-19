@@ -5,6 +5,8 @@
 //! can be read as the vocabulary of the module without any behaviour attached.
 
 use serde::{Deserialize, Serialize};
+
+use super::policy::{Permissions, Status};
 use std::process::Command;
 
 /// A change the user can ask for on a job.
@@ -96,23 +98,12 @@ pub struct Job {
     pub stdout_path: Option<String>,
     /// `StandardErrorPath` from the plist, if set.
     pub stderr_path: Option<String>,
-    /// The `Disabled` key written inside the plist file itself.
-    pub disabled_key: bool,
-    /// launchd's own disabled database (`launchctl print-disabled`).
-    ///
-    /// This — not [`Job::disabled_key`] — is what `launchctl enable/disable`
-    /// writes, and it overrides the plist key. `None` means the database has no
-    /// entry for this label, so the plist key wins. The frontend applies that
-    /// precedence; using `disabled_key` alone makes toggles look like no-ops.
-    pub disabled_override: Option<bool>,
-    /// Whether the label is present in `launchctl list`.
-    pub loaded: bool,
-    /// Process ID, if the job is running right now.
-    pub pid: Option<i64>,
-    /// Exit status of the most recent run, if launchd reported one.
-    pub last_exit: Option<i64>,
-    /// `com.apple.*` — protected; every mutating operation refuses these.
-    pub apple: bool,
+    /// What the job is doing, decided in [`super::policy`] from the plist, the
+    /// disabled database and `launchctl list`. The frontend renders this
+    /// directly rather than combining the raw facts itself.
+    pub status: Status,
+    /// What the user may do to the job, one answer per action.
+    pub permissions: Permissions,
 }
 
 /// One directory that launchd loads job definitions from.

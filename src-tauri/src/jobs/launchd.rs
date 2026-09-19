@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use super::policy::{launchd_permissions, LaunchdState};
 use super::types::{uid, weekday_name, Domain, Job, Scope};
 
 /// Every directory launchd loads job definitions from, in display order.
@@ -115,26 +116,29 @@ fn parse_launchd_plist(
     let stderr_path = dict.get("StandardErrorPath").and_then(|v| v.as_string()).map(|s| s.to_string());
 
     let (pid, last_exit) = runtime.get(&label).cloned().unwrap_or((None, None));
-    let loaded = runtime.contains_key(&label);
-    let label_for_db = label.clone();
+    let state = LaunchdState {
+        disabled_key,
+        disabled_override: disabled_db.get(&label).copied(),
+        loaded: runtime.contains_key(&label),
+        pid,
+        last_exit,
+    };
+    let path_str = path.to_string_lossy().into_owned();
+    let permissions = launchd_permissions(&label, &path_str, scope);
 
     Some(Job {
         label,
         kind: "launchd".into(),
         scope,
-        source_path: path.to_string_lossy().into_owned(),
+        source_path: path_str,
         source_group: d.group.into(),
         program,
         args,
         schedule_human: decode_launchd_schedule(dict),
         stdout_path,
         stderr_path,
-        disabled_key,
-        disabled_override: disabled_db.get(&label_for_db).copied(),
-        loaded,
-        pid,
-        last_exit,
-        apple,
+        status: state.status(),
+        permissions,
     })
 }
 

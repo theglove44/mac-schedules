@@ -15,6 +15,7 @@
 use std::path::Path;
 use std::process::Command;
 
+use super::policy::refusal;
 use super::types::{uid, Action, Scope};
 
 /// One `launchctl` invocation within a larger operation.
@@ -36,21 +37,18 @@ fn step(args: &[&str], critical: bool) -> Step {
 
 /// Refuse to touch Apple-owned jobs or the sealed system volume.
 ///
-/// Both the label and the scope are checked, since either alone can be
-/// misleading: an Apple label can sit in a user directory, and a third-party
-/// label can sit under `/System`.
+/// Defers to [`refusal`], the same rule the frontend was handed as
+/// [`super::policy::Permission::Refused`], so a button the UI offered cannot be
+/// one this refuses.
 ///
 /// # Returns
 /// `Ok(())` if the job may be modified, otherwise `Err` with a message written
 /// for the user, not for a log.
 fn guard_protected(label: &str, path: &str, scope: Scope) -> Result<(), String> {
-    if label.starts_with("com.apple.") || scope == Scope::Apple {
-        return Err("Apple system job — refused. Changing com.apple.* jobs can destabilise macOS.".into());
+    match refusal(label, path, scope) {
+        Some(reason) => Err(reason.message().to_string()),
+        None => Ok(()),
     }
-    if path.starts_with("/System/") {
-        return Err("Job lives in /System — refused. That volume is sealed and read-only.".into());
-    }
-    Ok(())
 }
 
 /// Enable or disable a launchd job.

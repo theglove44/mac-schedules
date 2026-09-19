@@ -7,6 +7,7 @@
 use std::path::Path;
 use std::process::Command;
 
+use super::policy::{cron_permissions, Status};
 use super::types::{weekday_name, Job, Scope};
 
 /// System-wide crontab files, which carry a user-name field before the command.
@@ -114,14 +115,10 @@ fn parse_cron_text(text: &str, source: &str, has_user_field: bool, jobs: &mut Ve
             schedule_human,
             stdout_path: None,
             stderr_path: None,
-            // cron has no disabled flag and no runtime state to report; a line
-            // that exists is live, which is why `loaded` is unconditionally true.
-            disabled_key: false,
-            disabled_override: None,
-            loaded: true,
-            pid: None,
-            last_exit: None,
-            apple: false,
+            // cron reports no run state at all, so the honest answer is simply
+            // that the line exists and will fire.
+            status: Status::Scheduled,
+            permissions: cron_permissions(),
         });
     }
 }
