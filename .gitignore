@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .central-brain.json
+
+# Per-project memsearch index — the workspace-level one is the deliberate index.
+.memsearch/
