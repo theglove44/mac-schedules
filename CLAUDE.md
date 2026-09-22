@@ -67,7 +67,7 @@ the `osascript` path goes through a shell and needs `shell_quote`.
 ```
 npm install
 npm run tauri dev      # dev window with hot frontend
-npm run tauri build    # produces src-tauri/target/release/bundle/macos/Schedules.app
+npm run tauri build    # produces src-tauri/target/release/bundle/macos/classic-schedules.app
 ```
 
 ## Notes

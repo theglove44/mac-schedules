@@ -119,6 +119,7 @@ Opens the app straight away and closes when you quit it.
 
 | Tab | What's in it |
 |---|---|
+| **Home** | The welcome screen the app opens on. |
 | **All** | Everything, grouped. |
 | **User Agents** | Jobs that run as *you*, when you're logged in. Most third-party apps live here. |
 | **Global** | Jobs that run for every user on this Mac. |
@@ -130,6 +131,7 @@ Opens the app straight away and closes when you quit it.
 
 - 🟢 **Green** — running at this very moment
 - ⚪ **Grey** — installed and waiting for its next scheduled time
+- ⭕ **Hollow** — installed but not currently registered with macOS
 - ~~**Struck-through**~~ — switched off; it won't run
 
 **Click any job** to see its details on the right: when it runs, exactly what
@@ -176,19 +178,27 @@ Tauri v2 — Rust backend, system WebView, vanilla HTML/CSS/JS frontend. No
 framework, no bundler; `src/` is served directly.
 
 ```
-src/                     frontend — index.html, main.js, styles/platinum.css
-src-tauri/src/jobs.rs    all data logic: enumerate, parse, decode, toggle, delete
-src-tauri/src/lib.rs     Tauri command wiring
+src/                        frontend — index.html, main.js, styles/platinum.css
+src-tauri/src/jobs/         all data logic, reading kept apart from writing:
+  types.rs                    the Job and Scope vocabulary
+  launchd.rs                  read plists, merge launchctl state, decode schedules
+  cron.rs                     read crontabs, decode schedules
+  policy.rs                   pure — what a job's state means, and what may be done to it
+  actions.rs                  the only place anything on the machine changes
+src-tauri/src/lib.rs        Tauri command wiring
 ```
 
 The Platinum theme in `styles/platinum.css` is hand-written — no System.css, no
-dependencies. Schedule decoding lives in `decode_launchd_schedule` and
-`decode_cron` in `jobs.rs`.
+dependencies. Schedule decoding lives in `decode_launchd_schedule`
+(`jobs/launchd.rs`) and `decode_cron` (`jobs/cron.rs`).
 
 One trap worth knowing: `launchctl enable/disable` writes launchd's own
 *disabled database*, not the `Disabled` key inside the plist — the plist on disk
-never changes. `Job.disabled_override` carries that database value and takes
-precedence. See `CLAUDE.md` for the full set of implementation notes.
+never changes, so the database wins wherever it has an entry. That precedence is
+applied in `jobs/policy.rs`, which decides each job's status and permissions
+before they reach the frontend; the interface renders those decisions and works
+nothing out for itself. See `CONTEXT.md` for the vocabulary and `CLAUDE.md` for
+the full set of implementation notes.
 
 ---
 
